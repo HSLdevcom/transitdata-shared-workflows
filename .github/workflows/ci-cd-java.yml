@@ -1,7 +1,7 @@
 name: ci-cd-java.yml
 on:
   workflow_call:
-    
+
 jobs:
   build-check-test-push:
     name: Build, check, test, push
@@ -17,7 +17,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '11'
           cache: 'maven'
 
       - name: Check code format and lint

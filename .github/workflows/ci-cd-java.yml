@@ -26,9 +26,13 @@ jobs:
 
       - name: Run tests
         run: mvn test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build artifact
         run: mvn package -Dmaven.test.skip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker Image
         uses: docker/build-push-action@v6

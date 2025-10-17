@@ -1,6 +1,17 @@
 name: ci-cd-java.yml
 on:
   workflow_call:
+    inputs:
+      uploadJarArtifact:
+        required: false
+        type: boolean
+        default: false
+      jarArtifactName:
+        required: false
+        type: string
+      jarArtifactPath:
+        required: false
+        type: string
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
@@ -36,6 +47,13 @@ jobs:
         run: mvn package -Dmaven.test.skip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload .jar artifact
+        if: ${{ inputs.uploadJarArtifact }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.jarArtifactName }}
+          path: ${{ inputs.jarArtifactPath }}
 
       - name: Lowercase Docker Image Name
         run: |

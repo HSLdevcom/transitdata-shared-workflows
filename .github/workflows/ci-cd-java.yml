@@ -1,6 +1,20 @@
 name: ci-cd-java.yml
 on:
   workflow_call:
+    inputs:
+      uploadJarArtifact:
+        required: false
+        type: boolean
+        default: false
+      jarArtifactName:
+        required: false
+        type: string
+      jarArtifactPath:
+        required: false
+        type: string
+
+env:
+  IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
 
 jobs:
   build-check-test-push:
@@ -26,13 +40,9 @@ jobs:
 
       - name: Run tests
         run: mvn test
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build artifact
         run: mvn package -Dmaven.test.skip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker Image
         uses: docker/build-push-action@v6

@@ -1,0 +1,97 @@
+name: ci-cd-kotlin.yml
+on:
+  workflow_call:
+    inputs:
+      uploadJarArtifact:
+        required: false
+        type: boolean
+        default: false
+      jarArtifactName:
+        required: false
+        type: string
+      jarArtifactPath:
+        required: false
+        type: string
+
+env:
+  IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
+
+jobs:
+  build-check-test-push:
+    name: Build, check, test, push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: 'true'
+          fetch-depth: 2
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          cache: 'maven'
+
+      - name: Check code format and lint
+        run: ./gradlew spotlessApply
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run tests
+        run: ./gradlew test
+
+      - name: Upload .jar artifact
+        if: ${{ inputs.uploadJarArtifact }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.jarArtifactName }}
+          path: ${{ inputs.jarArtifactPath }}
+
+      - name: Build artifact
+        run: ./gradlew build -x test
+
+      - name: Lowercase Docker Image Name
+        run: |
+          echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
+      - name: Build Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: 'false'
+          tags: 'hsldevcom/${{ env.IMAGE_NAME }}:${{ github.sha }}'
+
+      - name: Setup Docker Buildx
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Docker metadata
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.vendor=hsldevcom
+      - name: Login to Github Container Registry
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: docker/login-action@v3
+        with:
+          registry: hsldevcom
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Docker image
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

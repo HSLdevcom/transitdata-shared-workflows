@@ -32,7 +32,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '11'
-          cache: 'maven'
+          cache: 'gradle'
 
       - name: Check code format and lint
         run: ./gradlew spotlessApply

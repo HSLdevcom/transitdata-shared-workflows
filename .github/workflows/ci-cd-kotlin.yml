@@ -1,4 +1,4 @@
-name: ci-cd-java.yml
+name: ci-cd-kotlin.yml
 on:
   workflow_call:
     inputs:
@@ -35,18 +35,12 @@ jobs:
           cache: 'maven'
 
       - name: Check code format and lint
-        run: |
-          mvn spotless:check
+        run: ./gradlew spotlessApply
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
-        run: mvn test
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build artifact
-        run: mvn package -Dmaven.test.skip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew test
 
       - name: Upload .jar artifact
         if: ${{ inputs.uploadJarArtifact }}
@@ -54,6 +48,9 @@ jobs:
         with:
           name: ${{ inputs.jarArtifactName }}
           path: ${{ inputs.jarArtifactPath }}
+
+      - name: Build artifact
+        run: ./gradlew build -x test
 
       - name: Lowercase Docker Image Name
         run: |

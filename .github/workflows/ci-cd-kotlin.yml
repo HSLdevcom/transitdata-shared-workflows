@@ -12,6 +12,12 @@ on:
       jarArtifactPath:
         required: false
         type: string
+      dockerUser:
+        required: true
+        type: string
+      dockerPassword:
+        required: true
+        type: string
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
@@ -79,13 +85,13 @@ jobs:
           labels: |
             org.opencontainers.image.title=${{ env.IMAGE_NAME }}
             org.opencontainers.image.vendor=hsldevcom
-      - name: Login to Github Container Registry
+            
+      - name: Login to Docker Hub
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         uses: docker/login-action@v3
         with:
-          registry: hsldevcom
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ inputs.dockerUser }}
+          password: ${{ inputs.dockerPassword }}
 
       - name: Build & Push Docker image
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'

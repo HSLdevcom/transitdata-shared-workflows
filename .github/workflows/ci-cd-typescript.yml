@@ -7,17 +7,11 @@ on:
       DOCKER_PASSWORD:
         required: true
     inputs:
-      uploadJarArtifact:
+      checkAndTestOutsideDocker:
         required: false
         type: boolean
         default: false
-      jarArtifactName:
-        required: false
-        type: string
-      jarArtifactPath:
-        required: false
-        type: string
-      checkAndTestOutsideDocker:
+      codeCoverageEnabled:
         required: false
         type: boolean
         default: false
@@ -51,6 +45,18 @@ jobs:
       - name: Check and test outside Docker
         if: ${{ inputs.checkAndTestOutsideDocker }}
         run: npm run check-and-build
+
+      - name: Upload coverage reports to Codecov
+        if: ${{ codeCoverageEnabled }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ codeCoverageEnabled  && !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Lowercase Docker Image Name
         run: |

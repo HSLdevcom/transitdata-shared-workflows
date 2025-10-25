@@ -47,13 +47,13 @@ jobs:
         run: npm run check-and-build
 
       - name: Upload coverage reports to Codecov
-        if: ${{ codeCoverageEnabled }}
+        if: ${{ inputs.codeCoverageEnabled }}
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload test results to Codecov
-        if: ${{ codeCoverageEnabled  && !cancelled() }}
+        if: ${{ inputs.codeCoverageEnabled  && !cancelled() }}
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

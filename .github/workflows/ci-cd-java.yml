@@ -1,6 +1,11 @@
 name: ci-cd-java.yml
 on:
   workflow_call:
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+      DOCKER_PASSWORD:
+        required: true
     inputs:
       uploadJarArtifact:
         required: false
@@ -11,12 +16,6 @@ on:
         type: string
       jarArtifactPath:
         required: false
-        type: string
-      dockerUser:
-        required: true
-        type: string
-      dockerPassword:
-        required: true
         type: string
 
 env:
@@ -94,8 +93,8 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         uses: docker/login-action@v3
         with:
-          username: ${{ inputs.dockerUser }}
-          password: ${{ inputs.dockerPassword }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build & Push Docker image
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'

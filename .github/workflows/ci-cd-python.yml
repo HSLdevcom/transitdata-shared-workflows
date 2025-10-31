@@ -1,0 +1,94 @@
+name: ci-cd-python.yml
+on:
+  workflow_call:
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+      DOCKER_PASSWORD:
+        required: true
+        
+    inputs:
+      runTests:
+        required: false
+        type: boolean
+        default: false
+
+env:
+  IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
+
+jobs:
+  build-check-test-push:
+    name: Build, check, test, push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          clean: 'true'
+          fetch-depth: 2
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install
+
+      - name: Check code formatting
+        run: |
+          ruff check .
+          ruff format --check
+
+      - name: Run tests
+        if: ${{ inputs.runTests }}
+        run: pytest --junitxml=test-results.xml
+
+      - name: Build package
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        run: python -m build
+
+      - name: Lowercase Docker Image Name
+        run: |
+          echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: 'false'
+          tags: 'hsldevcom/${{ env.IMAGE_NAME }}:${{ github.sha }}'
+
+      - name: Setup Docker Buildx
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Docker metadata
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+            type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.title=${{ env.IMAGE_NAME }}
+            org.opencontainers.image.vendor=hsldevcom
+
+      - name: Login to Docker Hub
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build & Push Docker image
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

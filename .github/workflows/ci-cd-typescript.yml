@@ -15,6 +15,10 @@ on:
         required: false
         type: boolean
         default: false
+      performRelease:
+        required: false
+        type: boolean
+        default: false
 
 
 env:
@@ -58,6 +62,20 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
+      - name: Check if perform release
+        id: perform_release
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/develop" || "${GITHUB_REF}" == "refs/heads/aks-dev"]]; then
+            echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" && ( "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/* ) ]]; then
+            echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
+          elif [[ "${{ inputs.performRelease }}" == "true" ]]; then
+            echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
+          else
+            echo "PERFORM_RELEASE=false" >> $GITHUB_ENV
+          fi
+            echo "Perform release condition: PERFORM_RELEASE"
+
       - name: Lowercase Docker Image Name
         run: |
           echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
@@ -75,7 +93,7 @@ jobs:
             type=sha,format=long
 
       - name: Setup Docker Buildx
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+        if: env.PERFORM_RELEASE == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Build and export to Docker
@@ -91,14 +109,14 @@ jobs:
           docker run --rm "${{ env.IMAGE_NAME }}:${{ env.TEST_STAGE }}"
 
       - name: Login to Docker Hub
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || contains(github.ref, 'refs/tags/'))
+        if: env.PERFORM_RELEASE == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || contains(github.ref, 'refs/tags/'))
+        if: env.PERFORM_RELEASE == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .

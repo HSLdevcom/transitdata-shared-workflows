@@ -52,6 +52,7 @@ jobs:
         run: |
           mvn spotless:check
 
+
       - name: Run tests
         working-directory: ${{ inputs.workingDirectory }}
         run: mvn test
@@ -74,6 +75,7 @@ jobs:
       - name: Lowercase Docker Image Name
         run: |
           echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
+
 
       - name: Build Docker Image
         uses: docker/build-push-action@v6
@@ -123,7 +125,7 @@ jobs:
         if: env.PERFORM_RELEASE == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ inputs.workingDirectory }}
           push: ${{ env.PERFORM_RELEASE }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

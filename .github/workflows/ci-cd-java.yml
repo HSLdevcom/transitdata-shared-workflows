@@ -21,6 +21,10 @@ on:
         required: false
         type: boolean
         default: false
+      workingDirectory:
+        required: false
+        type: string
+        default: .
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
@@ -44,15 +48,18 @@ jobs:
           cache: 'maven'
 
       - name: Check code format and lint
+        working-directory: ${{ inputs.workingDirectory }}
         run: |
           mvn spotless:check
 
       - name: Run tests
+        working-directory: ${{ inputs.workingDirectory }}
         run: mvn test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build artifact
+        working-directory: ${{ inputs.workingDirectory }}
         run: mvn package -Dmaven.test.skip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,7 +78,7 @@ jobs:
       - name: Build Docker Image
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ inputs.workingDirectory }}
           push: 'false'
           tags: 'hsldevcom/${{ env.IMAGE_NAME }}:${{ github.sha }}'
 

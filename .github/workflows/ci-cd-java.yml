@@ -129,8 +129,3 @@ jobs:
           push: ${{ env.PERFORM_RELEASE }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-
-
-
-
-

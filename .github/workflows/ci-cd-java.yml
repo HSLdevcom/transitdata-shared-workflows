@@ -56,7 +56,6 @@ jobs:
         run: |
           mvn spotless:check
 
-
       - name: Run tests
         working-directory: ${{ inputs.workingDirectory }}
         run: mvn test
@@ -79,7 +78,6 @@ jobs:
       - name: Lowercase Docker Image Name
         run: |
           echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
-
 
       - name: Build Docker Image
         uses: docker/build-push-action@v6

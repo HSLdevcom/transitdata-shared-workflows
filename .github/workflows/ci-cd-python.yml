@@ -53,7 +53,7 @@ jobs:
       - name: Check if perform release
         id: perform_release
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/develop" || "${GITHUB_REF}" == "refs/heads/aks-dev"]]; then
+          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/develop" || "${GITHUB_REF}" == "refs/heads/aks-dev" ]]; then
             echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
           elif [[ "${{ inputs.performRelease }}" == "true" ]]; then
             echo "PERFORM_RELEASE=true" >> $GITHUB_ENV

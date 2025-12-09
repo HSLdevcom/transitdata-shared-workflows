@@ -25,6 +25,10 @@ on:
         required: false
         type: string
         default: .
+      javaVersion:
+        required: false
+        type: string
+        default: '11'
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
@@ -44,7 +48,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: ${{ inputs.javaVersion }}
           cache: 'maven'
 
       - name: Check code format and lint

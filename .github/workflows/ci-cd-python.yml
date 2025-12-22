@@ -62,10 +62,6 @@ jobs:
           fi
             echo "Perform release condition: PERFORM_RELEASE"
 
-      - name: Build package
-        if: env.PERFORM_RELEASE == 'true'
-        run: python -m build
-
       - name: Lowercase Docker Image Name
         run: |
           echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"

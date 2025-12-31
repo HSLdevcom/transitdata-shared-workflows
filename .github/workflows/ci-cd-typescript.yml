@@ -19,6 +19,10 @@ on:
         required: false
         type: boolean
         default: false
+      checkAndTestInsideDocker:
+        required: false
+        type: boolean
+        default: true
 
 
 env:
@@ -105,6 +109,7 @@ jobs:
           tags: "${{ env.IMAGE_NAME }}:${{ env.TEST_STAGE }}"
 
       - name: Check and test
+        if: ${{ inputs.checkAndTestInsideDocker }}
         run: |
           docker run --rm "${{ env.IMAGE_NAME }}:${{ env.TEST_STAGE }}"
 

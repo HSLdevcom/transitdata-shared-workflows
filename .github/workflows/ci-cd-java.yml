@@ -7,6 +7,7 @@ on:
       DOCKER_PASSWORD:
         required: true
     inputs:
+      # it is required for backwards compatibility with CI/CD pipelines that have not been yet fully migrated to shared workflows
       uploadJarArtifact:
         required: false
         type: boolean
@@ -28,9 +29,14 @@ on:
       imageName:
         required: false
         type: string
+      runTestsInsideDocker:
+        required: false
+        type: boolean
+        default: false
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
+  TEST_STAGE: test
 
 jobs:
   build-check-test-push:
@@ -55,7 +61,7 @@ jobs:
         run: |
           mvn spotless:check
 
-      - name: Run tests
+      - name: Run tests outside Docker
         working-directory: ${{ inputs.workingDirectory }}
         run: mvn test
         env:
@@ -86,6 +92,15 @@ jobs:
 
           echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_ENV"
 
+      - name: Build & runt tests inside Docker
+        if: inputs.runTestsInsideDocker == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.workingDirectory }}
+          load: true
+          target: "${{ env.TEST_STAGE }}"
+          tags: "${{ env.IMAGE_NAME }}:${{ env.TEST_STAGE }}"
+
       - name: Build Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -105,10 +120,6 @@ jobs:
           fi
             echo "Perform release condition: PERFORM_RELEASE"
 
-      - name: Setup Docker Buildx
-        if: env.PERFORM_RELEASE == 'true'
-        uses: docker/setup-buildx-action@v3
-
       - name: Extract Docker metadata
         if: env.PERFORM_RELEASE == 'true'
         id: meta
@@ -122,6 +133,10 @@ jobs:
           labels: |
             org.opencontainers.image.title=${{ env.IMAGE_NAME }}
             org.opencontainers.image.vendor=hsldevcom
+
+      - name: Setup Docker Buildx
+        if: env.PERFORM_RELEASE == 'true'
+        uses: docker/setup-buildx-action@v3
 
       - name: Login to Github Container Registry
         if: env.PERFORM_RELEASE == 'true'

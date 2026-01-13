@@ -92,7 +92,7 @@ jobs:
 
           echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_ENV"
 
-      - name: Build & runt tests inside Docker
+      - name: Build & run tests inside Docker
         if: inputs.runTestsInsideDocker == 'true'
         uses: docker/build-push-action@v6
         with:

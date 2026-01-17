@@ -107,6 +107,8 @@ jobs:
           context: ${{ inputs.workingDirectory }}
           push: 'false'
           tags: 'hsldevcom/${{ env.IMAGE_NAME }}:${{ github.sha }}'
+          secrets: |
+            "github_token=${{ secrets.GITHUB_TOKEN }}"
 
       - name: Check if perform release
         id: perform_release

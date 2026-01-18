@@ -72,6 +72,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Run Integration tests (Testcontainers)
+        working-directory: ${{ inputs.workingDirectory }}
+        run: mvn verify
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build artifact
         working-directory: ${{ inputs.workingDirectory }}
         run: mvn package -Dmaven.test.skip

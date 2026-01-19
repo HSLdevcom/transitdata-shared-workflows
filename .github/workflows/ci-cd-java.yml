@@ -113,6 +113,8 @@ jobs:
           tags: "${{ env.IMAGE_NAME }}:${{ env.TEST_STAGE }}"
           secrets:
             github_token=${{ secrets.GITHUB_TOKEN }}
+          build-args:
+            GITHUB_ACTOR=${{ github.actor }}
 
       - name: Build Docker Image
         uses: docker/build-push-action@v6

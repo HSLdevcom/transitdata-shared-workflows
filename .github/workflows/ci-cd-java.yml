@@ -124,6 +124,8 @@ jobs:
           tags: 'hsldevcom/${{ env.IMAGE_NAME }}:${{ github.sha }}'
           secrets: |
             github_token=${{ secrets.GITHUB_TOKEN }}
+          build-args:
+            GITHUB_ACTOR=${{ github.actor }}
 
       - name: Check if perform release
         id: perform_release

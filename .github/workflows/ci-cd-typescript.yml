@@ -69,16 +69,17 @@ jobs:
       - name: Check if perform release
         id: perform_release
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/develop" || "${GITHUB_REF}" == "refs/heads/aks-dev" ]]; then
-            echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
+          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/development" || "${GITHUB_REF}" == "refs/heads/aks-dev" ]]; then
+            PERFORM_RELEASE=true
           elif [[ "${GITHUB_EVENT_NAME}" == "push" && ( "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/* ) ]]; then
-            echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
+            PERFORM_RELEASE=true
           elif [[ "${{ inputs.performRelease }}" == "true" ]]; then
-            echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
+            PERFORM_RELEASE=true
           else
-            echo "PERFORM_RELEASE=false" >> $GITHUB_ENV
+            PERFORM_RELEASE=false
           fi
-            echo "Perform release condition: PERFORM_RELEASE"
+          echo "PERFORM_RELEASE=$PERFORM_RELEASE" >> $GITHUB_ENV
+          echo "Perform release: $PERFORM_RELEASE"
 
       - name: Lowercase Docker Image Name
         run: |
@@ -95,6 +96,15 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
             type=sha,format=long
+
+      - name: Compute extra tags (add :dev for develop branch)
+        run: |
+          DOCKER_TAGS="${{ steps.meta.outputs.tags }}"
+          if [[ "${GITHUB_REF}" == "refs/heads/development" ]]; then
+            DOCKER_TAGS="${DOCKER_TAGS},${IMAGE_NAME}:dev"
+          fi
+          echo "DOCKER_TAGS=$DOCKER_TAGS" >> "$GITHUB_ENV"
+          echo "Final docker tags: $DOCKER_TAGS"
 
       - name: Setup Docker Buildx
         if: env.PERFORM_RELEASE == 'true'
@@ -128,5 +138,5 @@ jobs:
           context: .
           push: true
           target: "${{ env.PRODUCTION_STAGE }}"
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.DOCKER_TAGS }}
           labels: ${{ steps.meta.outputs.labels }}

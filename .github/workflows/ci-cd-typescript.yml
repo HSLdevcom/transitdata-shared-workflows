@@ -69,7 +69,9 @@ jobs:
       - name: Check if perform release
         id: perform_release
         run: |
-          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/development" || "${GITHUB_REF}" == "refs/heads/aks-dev" ]]; then
+          run: |
+          run: |
+          if [[ "${{ github.ref_name }}" == "${{ github.event.repository.default_branch }}" || "${{ github.ref_name }}" == "development" || "${{ github.ref_name }}" == "aks-dev" ]]; then
             PERFORM_RELEASE=true
           elif [[ "${GITHUB_EVENT_NAME}" == "push" && ( "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == refs/tags/* ) ]]; then
             PERFORM_RELEASE=true

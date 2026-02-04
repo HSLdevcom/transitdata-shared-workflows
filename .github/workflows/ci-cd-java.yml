@@ -11,6 +11,8 @@ on:
         required: true
       DOCKER_PASSWORD:
         required: true
+      CODECOV_TOKEN:
+        required: false
     inputs:
       # it is required for backwards compatibility with CI/CD pipelines that have not been yet fully migrated to shared workflows
       uploadJarArtifact:
@@ -38,10 +40,20 @@ on:
         required: false
         type: boolean
         default: false
+      codeCoverageEnabled:
+        required: false
+        type: boolean
+        default: false
+      codeCoverageExcludes:
+        required: false
+        type: string
+        default: ""
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
   TEST_STAGE: test
+  JACOCO_VERSION: "0.8.12"
+  JACOCO_REPORTS: "**/target/site/jacoco/jacoco.xml,**/target/site/jacoco-it/jacoco.xml,**/target/site/jacoco-aggregate/jacoco.xml"
 
 jobs:
   build-check-test-push:
@@ -68,15 +80,52 @@ jobs:
 
       - name: Run tests outside Docker
         working-directory: ${{ inputs.workingDirectory }}
-        run: mvn test
+        run: |
+          JACOCO_EXCLUDES_ARG=""
+          if [[ -n "${JACOCO_EXCLUDES}" ]]; then
+            JACOCO_EXCLUDES_ARG="-Djacoco.excludes=${JACOCO_EXCLUDES}"
+          fi
+          if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
+            mvn "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent" \
+              test \
+              "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report" \
+              ${JACOCO_EXCLUDES_ARG}
+          else
+            mvn test
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
+          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
 
       - name: Run Integration tests (Testcontainers)
         working-directory: ${{ inputs.workingDirectory }}
-        run: mvn verify
+        run: |
+          JACOCO_EXCLUDES_ARG=""
+          if [[ -n "${JACOCO_EXCLUDES}" ]]; then
+            JACOCO_EXCLUDES_ARG="-Djacoco.excludes=${JACOCO_EXCLUDES}"
+          fi
+          if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
+            mvn "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent-integration" \
+              verify \
+              "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report-integration" \
+              ${JACOCO_EXCLUDES_ARG}
+          else
+            mvn verify
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
+          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
+
+      - name: Upload coverage reports to Codecov
+        if: ${{ inputs.codeCoverageEnabled }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ env.JACOCO_REPORTS }}
+          fail_ci_if_error: true
+          verbose: true
 
       - name: Build artifact
         working-directory: ${{ inputs.workingDirectory }}

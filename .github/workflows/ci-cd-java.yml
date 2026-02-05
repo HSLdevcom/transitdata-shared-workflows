@@ -80,23 +80,27 @@ jobs:
 
       - name: Run tests outside Docker
         working-directory: ${{ inputs.workingDirectory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
+          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
+          JAVA_TOOL_OPTIONS: ""
+          MAVEN_OPTS: ""
         run: |
           JACOCO_EXCLUDES_ARG=""
           if [[ -n "${JACOCO_EXCLUDES}" ]]; then
             JACOCO_EXCLUDES_ARG="-Djacoco.excludes=${JACOCO_EXCLUDES}"
           fi
+
           if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
-            mvn "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent" \
+            mvn -Djacoco.version=${JACOCO_VERSION} \
+              "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent" \
               test \
               "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report" \
               ${JACOCO_EXCLUDES_ARG}
           else
             mvn test
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
-          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
 
       - name: Run Integration tests (Testcontainers)
         working-directory: ${{ inputs.workingDirectory }}

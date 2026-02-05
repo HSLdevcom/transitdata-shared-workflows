@@ -52,7 +52,7 @@ on:
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
   TEST_STAGE: test
-  JACOCO_VERSION: "0.8.12"
+  JACOCO_VERSION: "0.8.14"
   JACOCO_REPORTS: "**/target/site/jacoco/jacoco.xml,**/target/site/jacoco-it/jacoco.xml,**/target/site/jacoco-aggregate/jacoco.xml"
 
 jobs:

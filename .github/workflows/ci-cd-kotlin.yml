@@ -6,6 +6,8 @@ on:
         required: true
       DOCKER_PASSWORD:
         required: true
+      CODECOV_TOKEN:
+        required: false
     inputs:
       uploadJarArtifact:
         required: false
@@ -21,9 +23,14 @@ on:
         required: false
         type: boolean
         default: false
+      codeCoverageEnabled:
+        required: false
+        type: boolean
+        default: false
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
+  JACOCO_REPORTS: "**/build/reports/jacoco/test/jacocoTestReport.xml,**/build/reports/jacoco/jacoco.xml"
 
 jobs:
   build-check-test-push:
@@ -49,7 +56,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
-        run: ./gradlew test
+        env:
+          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
+        run: |
+          if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
+            ./gradlew test jacocoTestReport
+          else
+            ./gradlew test
+          fi
+
+      - name: Upload coverage reports to Codecov
+        if: ${{ inputs.codeCoverageEnabled }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ env.JACOCO_REPORTS }}
+          fail_ci_if_error: true
+          verbose: true
 
       - name: Upload .jar artifact
         if: ${{ inputs.uploadJarArtifact }}

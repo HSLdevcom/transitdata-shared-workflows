@@ -1,4 +1,9 @@
 name: ci-cd-kotlin.yml
+
+permissions:
+  contents: read
+  packages: read
+
 on:
   workflow_call:
     secrets:

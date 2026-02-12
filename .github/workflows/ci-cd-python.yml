@@ -53,14 +53,16 @@ jobs:
       - name: Check if perform release
         id: perform_release
         run: |
+          PERFORM_RELEASE=false
           if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/develop" || "${GITHUB_REF}" == "refs/heads/aks-dev" ]]; then
-            echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
+            PERFORM_RELEASE=true
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            PERFORM_RELEASE=true
           elif [[ "${{ inputs.performRelease }}" == "true" ]]; then
-            echo "PERFORM_RELEASE=true" >> $GITHUB_ENV
-          else
-            echo "PERFORM_RELEASE=false" >> $GITHUB_ENV
+            PERFORM_RELEASE=true
           fi
-            echo "Perform release condition: PERFORM_RELEASE"
+          echo "PERFORM_RELEASE=${PERFORM_RELEASE}" >> $GITHUB_ENV
+          echo "Perform release: ${PERFORM_RELEASE}"
 
       - name: Lowercase Docker Image Name
         run: |
@@ -103,6 +105,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' }}
+          push: ${{ env.PERFORM_RELEASE }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

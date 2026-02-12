@@ -63,10 +63,12 @@ jobs:
       - name: Check code format and lint
         run: ./gradlew spotlessApply
         env:
+          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         env:
+          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
           JACOCO_VERSION: ${{ env.JACOCO_VERSION }}
@@ -74,8 +76,8 @@ jobs:
         run: |
           if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
             ./gradlew test jacocoTestReport \
-                -PjacocoVersion="${{ JACOCO_VERSION }}" \
-                ${JACOCO_EXCLUDES:+-PjacocoExcludes=${JACOCO_EXCLUDES}}
+              -PjacocoVersion="${JACOCO_VERSION}" \
+              ${JACOCO_EXCLUDES:+-PjacocoExcludes="${JACOCO_EXCLUDES}"}
           else
             ./gradlew test
           fi
@@ -98,6 +100,9 @@ jobs:
 
       - name: Build artifact
         run: ./gradlew build -x test
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lowercase Docker Image Name
         run: |

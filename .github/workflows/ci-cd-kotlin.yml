@@ -75,7 +75,7 @@ jobs:
           JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
         run: |
           if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
-            ./gradlew test jacocoTestReport \
+            ./gradlew test jacocoTestReport --stacktrace \
               -PjacocoVersion="${JACOCO_VERSION}" \
               ${JACOCO_EXCLUDES:+-PjacocoExcludes="${JACOCO_EXCLUDES}"}
           else

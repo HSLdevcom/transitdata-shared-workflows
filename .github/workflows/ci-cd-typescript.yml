@@ -6,6 +6,8 @@ on:
         required: true
       DOCKER_PASSWORD:
         required: true
+      CODECOV_TOKEN:
+        required: false
     inputs:
       checkAndTestOutsideDocker:
         required: false
@@ -29,6 +31,7 @@ env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
   TEST_STAGE: tester
   PRODUCTION_STAGE: production
+  COVERAGE_REPORTS: "coverage/lcov.info,**/coverage/lcov.info"
 
 jobs:
   build-check-test-push:
@@ -51,14 +54,23 @@ jobs:
         run: npm ci
 
       - name: Check and test outside Docker
-        if: ${{ inputs.checkAndTestOutsideDocker }}
-        run: npm run check-and-build
+        if: ${{ inputs.checkAndTestOutsideDocker || inputs.codeCoverageEnabled }}
+        env:
+          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
+        run: |
+          npm run check-and-build
+          if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
+            npm run test -- --coverage
+          fi
 
       - name: Upload coverage reports to Codecov
         if: ${{ inputs.codeCoverageEnabled }}
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ env.COVERAGE_REPORTS }}
+          fail_ci_if_error: true
+          verbose: true
 
       - name: Upload test results to Codecov
         if: ${{ inputs.codeCoverageEnabled  && !cancelled() }}

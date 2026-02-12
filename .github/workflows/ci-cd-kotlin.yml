@@ -27,9 +27,14 @@ on:
         required: false
         type: boolean
         default: false
+      codeCoverageExcludes:
+        required: false
+        type: string
+        default: ""
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
+  JACOCO_VERSION: "0.8.14"
   JACOCO_REPORTS: "**/build/reports/jacoco/test/jacocoTestReport.xml,**/build/reports/jacoco/jacoco.xml"
 
 jobs:
@@ -57,10 +62,15 @@ jobs:
 
       - name: Run tests
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
+          JACOCO_VERSION: ${{ env.JACOCO_VERSION }}
+          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
         run: |
           if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
-            ./gradlew test jacocoTestReport
+            ./gradlew test jacocoTestReport \
+                -PjacocoVersion="${{ JACOCO_VERSION }}" \
+                ${JACOCO_EXCLUDES:+-PjacocoExcludes=${JACOCO_EXCLUDES}}
           else
             ./gradlew test
           fi

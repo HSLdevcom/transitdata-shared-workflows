@@ -40,10 +40,6 @@ on:
         required: false
         type: boolean
         default: false
-      codeCoverageEnabled:
-        required: false
-        type: boolean
-        default: false
       codeCoverageExcludes:
         required: false
         type: string
@@ -82,7 +78,6 @@ jobs:
         working-directory: ${{ inputs.workingDirectory }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
           JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
           JAVA_TOOL_OPTIONS: ""
           MAVEN_OPTS: ""
@@ -91,16 +86,12 @@ jobs:
           if [[ -n "${JACOCO_EXCLUDES}" ]]; then
             JACOCO_EXCLUDES_ARG="-Djacoco.excludes=${JACOCO_EXCLUDES}"
           fi
-
-          if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
-            mvn -Djacoco.version=${JACOCO_VERSION} \
-              "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent" \
-              test \
-              "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report" \
-              ${JACOCO_EXCLUDES_ARG}
-          else
-            mvn test
-          fi
+          
+          mvn -Djacoco.version=${JACOCO_VERSION} \
+            "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent" \
+            test \
+            "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report" \
+            ${JACOCO_EXCLUDES_ARG}
 
       - name: Run Integration tests (Testcontainers)
         working-directory: ${{ inputs.workingDirectory }}
@@ -109,21 +100,16 @@ jobs:
           if [[ -n "${JACOCO_EXCLUDES}" ]]; then
             JACOCO_EXCLUDES_ARG="-Djacoco.excludes=${JACOCO_EXCLUDES}"
           fi
-          if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
-            mvn "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent-integration" \
-              verify \
-              "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report-integration" \
-              ${JACOCO_EXCLUDES_ARG}
-          else
-            mvn verify
-          fi
+          mvn "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent-integration" \
+            verify \
+            "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report-integration" \
+            ${JACOCO_EXCLUDES_ARG}
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
           JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
 
       - name: Upload coverage reports to Codecov
-        if: ${{ inputs.codeCoverageEnabled }}
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

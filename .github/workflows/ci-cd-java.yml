@@ -93,13 +93,6 @@ jobs:
             "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report" \
             ${JACOCO_EXCLUDES_ARG}
 
-      - name: Debug Docker/Testcontainers env
-        run: |
-          echo "DOCKER_HOST=$DOCKER_HOST"
-          echo "DOCKER_API_VERSION=$DOCKER_API_VERSION"
-          docker version
-          docker info
-
       - name: Run Integration tests (Testcontainers)
         working-directory: ${{ inputs.workingDirectory }}
         env:

@@ -93,8 +93,22 @@ jobs:
             "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report" \
             ${JACOCO_EXCLUDES_ARG}
 
+      - name: Debug Docker/Testcontainers env
+        run: |
+          echo "DOCKER_HOST=$DOCKER_HOST"
+          echo "DOCKER_API_VERSION=$DOCKER_API_VERSION"
+          docker version
+          docker info
+
       - name: Run Integration tests (Testcontainers)
         working-directory: ${{ inputs.workingDirectory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+          JAVA_TOOL_OPTIONS: ""
+          MAVEN_OPTS: ""
         run: |
           JACOCO_EXCLUDES_ARG=""
           if [[ -n "${JACOCO_EXCLUDES}" ]]; then
@@ -104,10 +118,6 @@ jobs:
             verify \
             "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report-integration" \
             ${JACOCO_EXCLUDES_ARG}
-
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

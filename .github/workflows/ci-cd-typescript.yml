@@ -13,10 +13,6 @@ on:
         required: false
         type: boolean
         default: false
-      codeCoverageEnabled:
-        required: false
-        type: boolean
-        default: false
       performRelease:
         required: false
         type: boolean
@@ -54,17 +50,12 @@ jobs:
         run: npm ci
 
       - name: Check and test outside Docker
-        if: ${{ inputs.checkAndTestOutsideDocker || inputs.codeCoverageEnabled }}
-        env:
-          CODE_COVERAGE_ENABLED: ${{ inputs.codeCoverageEnabled }}
+        if: ${{ inputs.checkAndTestOutsideDocker }}
         run: |
           npm run check-and-build
-          if [[ "${CODE_COVERAGE_ENABLED}" == "true" ]]; then
-            npm run test -- --coverage
-          fi
+          npm run test -- --coverage
 
       - name: Upload coverage reports to Codecov
-        if: ${{ inputs.codeCoverageEnabled }}
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -73,7 +64,7 @@ jobs:
           verbose: true
 
       - name: Upload test results to Codecov
-        if: ${{ inputs.codeCoverageEnabled  && !cancelled() }}
+        if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

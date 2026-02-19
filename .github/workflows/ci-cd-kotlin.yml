@@ -62,6 +62,14 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Docker diagnostics
+        run: |
+          whoami
+          id
+          docker version
+          docker info
+          ls -la /var/run/docker.sock || true
+
       - name: Run tests
         env:
           GITHUB_ACTOR: ${{ github.actor }}

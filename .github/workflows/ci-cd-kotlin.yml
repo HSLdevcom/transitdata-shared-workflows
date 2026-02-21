@@ -11,8 +11,6 @@ on:
         required: true
       DOCKER_PASSWORD:
         required: true
-      CODECOV_TOKEN:
-        required: false
     inputs:
       uploadJarArtifact:
         required: false
@@ -28,15 +26,9 @@ on:
         required: false
         type: boolean
         default: false
-      codeCoverageExcludes:
-        required: false
-        type: string
-        default: ""
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
-  JACOCO_VERSION: "0.8.14"
-  JACOCO_REPORTS: "**/build/reports/jacoco/test/jacocoTestReport.xml,**/build/reports/jacoco/jacoco.xml"
 
 jobs:
   build-check-test-push:
@@ -57,7 +49,7 @@ jobs:
           cache: 'gradle'
 
       - name: Check code format and lint
-        run: ./gradlew spotlessApply
+        run: ./gradlew spotlessCheck
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -66,20 +58,21 @@ jobs:
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JACOCO_VERSION: ${{ env.JACOCO_VERSION }}
-          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
         run: |
-            ./gradlew test jacocoTestReport --stacktrace \
-              -PjacocoVersion="${JACOCO_VERSION}" \
-              ${JACOCO_EXCLUDES:+-PjacocoExcludes="${JACOCO_EXCLUDES}"}
+            ./gradlew test jacocoTestReport --stacktrace
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ env.JACOCO_REPORTS }}
           fail_ci_if_error: true
           verbose: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload .jar artifact
         if: ${{ inputs.uploadJarArtifact }}

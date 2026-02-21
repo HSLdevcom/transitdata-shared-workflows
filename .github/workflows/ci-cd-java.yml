@@ -11,8 +11,6 @@ on:
         required: true
       DOCKER_PASSWORD:
         required: true
-      CODECOV_TOKEN:
-        required: false
     inputs:
       # it is required for backwards compatibility with CI/CD pipelines that have not been yet fully migrated to shared workflows
       uploadJarArtifact:
@@ -40,16 +38,10 @@ on:
         required: false
         type: boolean
         default: false
-      codeCoverageExcludes:
-        required: false
-        type: string
-        default: ""
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
   TEST_STAGE: test
-  JACOCO_VERSION: "0.8.14"
-  JACOCO_REPORTS: "**/target/site/jacoco/jacoco.xml,**/target/site/jacoco-it/jacoco.xml,**/target/site/jacoco-aggregate/jacoco.xml"
 
 jobs:
   build-check-test-push:
@@ -78,47 +70,32 @@ jobs:
         working-directory: ${{ inputs.workingDirectory }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
           JAVA_TOOL_OPTIONS: ""
           MAVEN_OPTS: ""
-        run: |
-          JACOCO_EXCLUDES_ARG=""
-          if [[ -n "${JACOCO_EXCLUDES}" ]]; then
-            JACOCO_EXCLUDES_ARG="-Djacoco.excludes=${JACOCO_EXCLUDES}"
-          fi
-          
-          mvn -Djacoco.version=${JACOCO_VERSION} \
-            "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent" \
-            test \
-            "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report" \
-            ${JACOCO_EXCLUDES_ARG}
+        run: mvn -B test
 
       - name: Run Integration tests (Testcontainers)
         working-directory: ${{ inputs.workingDirectory }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JACOCO_EXCLUDES: ${{ inputs.codeCoverageExcludes }}
           DOCKER_HOST: unix:///var/run/docker.sock
           TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
           JAVA_TOOL_OPTIONS: ""
           MAVEN_OPTS: ""
-        run: |
-          JACOCO_EXCLUDES_ARG=""
-          if [[ -n "${JACOCO_EXCLUDES}" ]]; then
-            JACOCO_EXCLUDES_ARG="-Djacoco.excludes=${JACOCO_EXCLUDES}"
-          fi
-          mvn "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:prepare-agent-integration" \
-            verify \
-            "org.jacoco:jacoco-maven-plugin:${JACOCO_VERSION}:report-integration" \
-            ${JACOCO_EXCLUDES_ARG}
+        run: mvn -B verify
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ env.JACOCO_REPORTS }}
           fail_ci_if_error: true
           verbose: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Build artifact
         working-directory: ${{ inputs.workingDirectory }}
@@ -201,7 +178,7 @@ jobs:
         if: ${{ env.PERFORM_RELEASE == 'true' }}
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Github Container Registry
+      - name: Login to Docker Hub
         if: ${{ env.PERFORM_RELEASE == 'true' }}
         uses: docker/login-action@v3
         with:

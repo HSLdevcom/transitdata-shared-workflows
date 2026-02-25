@@ -6,13 +6,6 @@ permissions:
 
 on:
   workflow_call:
-    secrets:
-      DOCKER_USERNAME:
-        required: true
-      DOCKER_PASSWORD:
-        required: true
-      CODECOV_TOKEN:
-        required: true
     inputs:
       uploadJarArtifact:
         required: false
@@ -137,8 +130,8 @@ jobs:
         if: env.PERFORM_RELEASE == 'true'
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_HUB_INFODEVOPS_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_INFODEVOPS_TOKEN }}
 
       - name: Build & Push Docker image
         if: env.PERFORM_RELEASE == 'true'

@@ -21,6 +21,14 @@ on:
         required: false
         type: boolean
         default: false
+      runTestsInsideDocker:
+        required: false
+        type: boolean
+        default: true
+      hasIntegrationTests:
+        required: false
+        type: boolean
+        default: false
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
@@ -36,6 +44,30 @@ jobs:
           clean: 'true'
           fetch-depth: 2
 
+      # Required since custom scripts from /scripts are being used
+      - name: Resolve shared workflow ref
+        run: |
+          set -euo pipefail
+          SHARED_WORKFLOW_REF=$(grep -roh \
+            'transitdata-shared-workflows/.github/workflows/[^@]*@[^ "'\'']*' \
+            "${GITHUB_WORKSPACE}/.github/workflows/" 2>/dev/null \
+            | sed 's/.*@//' | head -1 || true)
+
+          if [[ -z "${SHARED_WORKFLOW_REF}" ]]; then
+            echo "::warning::Could not detect shared workflow ref from caller workflows; falling back to main"
+            SHARED_WORKFLOW_REF="main"
+          fi
+
+          echo "Resolved shared workflow ref: ${SHARED_WORKFLOW_REF}"
+          echo "SHARED_WORKFLOW_REF=${SHARED_WORKFLOW_REF}" >> "$GITHUB_ENV"
+
+      - name: Checkout shared workflow scripts
+        uses: actions/checkout@v4
+        with:
+          repository: HSLdevcom/transitdata-shared-workflows
+          ref: ${{ env.SHARED_WORKFLOW_REF }}
+          path: .shared-workflows
+
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -43,18 +75,55 @@ jobs:
           java-version: '11'
           cache: 'gradle'
 
+      - name: Validate Java version consistency
+        env:
+          JAVA_TOOL_OPTIONS: ""
+        run: python3 "${GITHUB_WORKSPACE}/.shared-workflows/scripts/validate_java_version_consistency.py"
+
       - name: Check code format and lint
         run: ./gradlew spotlessCheck
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run tests
+      - name: Run unit tests inside Docker
+        if: ${{ inputs.runTestsInsideDocker }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR_ARG: ${{ github.actor }}
+          DOCKER_BUILDKIT: "1"
+        run: |
+          cat > /tmp/Dockerfile.test << DOCKERFILE
+          # syntax=docker/dockerfile:1
+          # check=error=true
+          FROM ${TEST_BASE_IMAGE}
+          WORKDIR /usr/app
+          ARG GITHUB_ACTOR=github-actions
+          COPY . .
+          RUN --mount=type=secret,id=github_token \
+              export GITHUB_TOKEN="\$(cat /run/secrets/github_token)" && \
+              export GITHUB_ACTOR="\$GITHUB_ACTOR" && \
+              ./gradlew test --stacktrace --no-daemon
+          DOCKERFILE
+          docker build \
+            --secret id=github_token,env=GITHUB_TOKEN \
+            --build-arg "GITHUB_ACTOR=${GITHUB_ACTOR_ARG}" \
+            -f /tmp/Dockerfile.test \
+            .
+
+      - name: Run unit tests
+        if: ${{ inputs.hasIntegrationTests == false }}
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-            ./gradlew test jacocoTestReport --stacktrace
+        run: ./gradlew test jacocoTestReport --stacktrace
+
+      - name: Run unit tests and integration tests
+        if: ${{ inputs.hasIntegrationTests }}
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew test integrationTest jacocoTestReport --stacktrace
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

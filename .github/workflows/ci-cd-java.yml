@@ -12,12 +12,6 @@ on:
         required: false
         type: boolean
         default: false
-      jarArtifactName:
-        required: false
-        type: string
-      jarArtifactPath:
-        required: false
-        type: string
       performRelease:
         required: false
         type: boolean
@@ -104,8 +98,8 @@ jobs:
         if: ${{ inputs.uploadJarArtifact }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.jarArtifactName }}
-          path: ${{ inputs.jarArtifactPath }}
+          name: 'app.jar'
+          path: '/app/app.jar'
 
       - name: Set Docker Image Name
         run: |

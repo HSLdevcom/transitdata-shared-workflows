@@ -12,12 +12,6 @@ on:
         required: false
         type: boolean
         default: false
-      jarArtifactName:
-        required: false
-        type: string
-      jarArtifactPath:
-        required: false
-        type: string
       performRelease:
         required: false
         type: boolean
@@ -32,11 +26,10 @@ on:
       runTestsInsideDocker:
         required: false
         type: boolean
-        default: false
+        default: true
 
 env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
-  TEST_STAGE: test
 
 jobs:
   build-check-test-push:
@@ -49,6 +42,31 @@ jobs:
           clean: 'true'
           fetch-depth: 2
 
+      # Required since custom scripts from /scripts are being used
+      - name: Resolve shared workflow ref
+        id: resolve_shared_workflow_ref
+        run: |
+          set -euo pipefail
+          SHARED_WORKFLOW_REF=$(grep -roh \
+            'transitdata-shared-workflows/.github/workflows/[^@]*@[^ "'\'']*' \
+            "${GITHUB_WORKSPACE}/.github/workflows/" 2>/dev/null \
+            | sed 's/.*@//' | head -1 || true)
+
+          if [[ -z "${SHARED_WORKFLOW_REF}" ]]; then
+            echo "::warning::Could not detect shared workflow ref from caller workflows; falling back to main"
+            SHARED_WORKFLOW_REF="main"
+          fi
+
+          echo "Resolved shared workflow ref: ${SHARED_WORKFLOW_REF}"
+          echo "shared_workflow_ref=${SHARED_WORKFLOW_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout shared workflow scripts
+        uses: actions/checkout@v4
+        with:
+          repository: HSLdevcom/transitdata-shared-workflows
+          ref: ${{ steps.resolve_shared_workflow_ref.outputs.shared_workflow_ref }}
+          path: .shared-workflows
+
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -56,12 +74,48 @@ jobs:
           java-version: '25'
           cache: 'maven'
 
+      - name: Validate Java version consistency
+        working-directory: ${{ inputs.workingDirectory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JAVA_TOOL_OPTIONS: ""
+          MAVEN_OPTS: ""
+        run: python3 "${GITHUB_WORKSPACE}/.shared-workflows/scripts/validate_java_version_consistency.py"
+
       - name: Check code format and lint
         working-directory: ${{ inputs.workingDirectory }}
         run: |
           mvn spotless:check
 
-      - name: Run tests outside Docker
+      - name: Run unit tests inside Docker
+        if: ${{ inputs.runTestsInsideDocker }}
+        working-directory: ${{ inputs.workingDirectory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          DOCKER_BUILDKIT: "1"
+        run: |
+          cat > /tmp/Dockerfile.test << DOCKERFILE
+          # syntax=docker/dockerfile:1
+          # check=error=true
+          FROM ${TEST_BASE_IMAGE}
+          WORKDIR /usr/app
+          COPY . .
+          COPY .mvn/settings.xml /root/.m2/settings.xml
+          RUN --mount=type=secret,id=github_token \
+              --mount=type=secret,id=github_actor \
+              export GITHUB_TOKEN="\$(cat /run/secrets/github_token)" && \
+              export GITHUB_ACTOR="\$(cat /run/secrets/github_actor)" && \
+              ./mvnw -B test
+          DOCKERFILE
+          docker build \
+            --secret id=github_token,env=GITHUB_TOKEN \
+            --secret id=github_actor,env=GITHUB_ACTOR \
+            -f /tmp/Dockerfile.test \
+            .
+
+      - name: Run unit tests outside Docker
+        if: ${{ !inputs.runTestsInsideDocker }}
         working-directory: ${{ inputs.workingDirectory }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -104,8 +158,8 @@ jobs:
         if: ${{ inputs.uploadJarArtifact }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.jarArtifactName }}
-          path: ${{ inputs.jarArtifactPath }}
+          name: 'app.jar'
+          path: '/app/app.jar'
 
       - name: Set Docker Image Name
         run: |
@@ -118,19 +172,6 @@ jobs:
           fi
 
           echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_ENV"
-
-      - name: Build & run tests inside Docker
-        if: ${{ inputs.runTestsInsideDocker }}
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ inputs.workingDirectory }}
-          load: true
-          target: "${{ env.TEST_STAGE }}"
-          tags: "${{ env.IMAGE_NAME }}:${{ env.TEST_STAGE }}"
-          secrets:
-            github_token=${{ secrets.GITHUB_TOKEN }}
-          build-args:
-            GITHUB_ACTOR=${{ github.actor }}
 
       - name: Build Docker Image
         uses: docker/build-push-action@v6

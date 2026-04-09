@@ -1,4 +1,9 @@
 name: ci-cd-typescript.yml
+
+permissions:
+  contents: read
+  packages: read
+
 on:
   workflow_call:
     inputs:

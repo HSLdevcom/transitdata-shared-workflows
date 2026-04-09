@@ -1,2 +1,5 @@
 .idea
 /AGENTS.md
+/CLAUDE.md
+/.claude/settings.local.json
+/scripts

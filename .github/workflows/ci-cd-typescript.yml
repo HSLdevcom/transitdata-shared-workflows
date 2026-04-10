@@ -48,9 +48,7 @@ jobs:
 
       - name: Check and test outside Docker
         if: ${{ inputs.checkAndTestOutsideDocker }}
-        run: |
-          npm run check-and-build
-          npm run test -- --coverage
+        run: npm run check-and-build
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

@@ -231,3 +231,7 @@ jobs:
           push: ${{ env.PERFORM_RELEASE }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}
+          build-args: |                                                                                                                                                    
+            GITHUB_ACTOR=${{ github.actor }}     

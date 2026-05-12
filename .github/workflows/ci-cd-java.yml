@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           clean: 'true'
           fetch-depth: 2
@@ -61,14 +61,14 @@ jobs:
           echo "shared_workflow_ref=${SHARED_WORKFLOW_REF}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout shared workflow scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: HSLdevcom/transitdata-shared-workflows
           ref: ${{ steps.resolve_shared_workflow_ref.outputs.shared_workflow_ref }}
           path: .shared-workflows
 
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: 'temurin'
           java-version: '25'
@@ -134,7 +134,7 @@ jobs:
         run: mvn -B verify
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
@@ -142,7 +142,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
@@ -156,7 +156,7 @@ jobs:
 
       - name: Upload .jar artifact
         if: ${{ inputs.uploadJarArtifact }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: 'app.jar'
           path: '/app/app.jar'
@@ -174,7 +174,7 @@ jobs:
           echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_ENV"
 
       - name: Build Docker Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ${{ inputs.workingDirectory }}
           push: 'false'
@@ -201,7 +201,7 @@ jobs:
       - name: Extract Docker metadata
         if: ${{ env.PERFORM_RELEASE == 'true' }}
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -214,18 +214,18 @@ jobs:
 
       - name: Setup Docker Buildx
         if: ${{ env.PERFORM_RELEASE == 'true' }}
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Login to Docker Hub
         if: ${{ env.PERFORM_RELEASE == 'true' }}
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKER_HUB_INFODEVOPS_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_INFODEVOPS_TOKEN }}
 
       - name: Build & Push Docker image
         if: ${{ env.PERFORM_RELEASE == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ${{ inputs.workingDirectory }}
           push: ${{ env.PERFORM_RELEASE }}
@@ -233,5 +233,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           secrets: |
             github_token=${{ secrets.GITHUB_TOKEN }}
-          build-args: |                                                                                                                                                    
-            GITHUB_ACTOR=${{ github.actor }}     
+          build-args: |
+            GITHUB_ACTOR=${{ github.actor }}

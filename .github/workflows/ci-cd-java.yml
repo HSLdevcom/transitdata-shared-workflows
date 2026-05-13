@@ -67,11 +67,28 @@ jobs:
           ref: ${{ steps.resolve_shared_workflow_ref.outputs.shared_workflow_ref }}
           path: .shared-workflows
 
+      - name: Check if release build
+        id: release_check
+        env:
+          PERFORM_RELEASE_INPUT: ${{ inputs.performRelease }}
+        run: |
+          PERFORM_RELEASE=false
+          if [[ "${GITHUB_REF}" == "refs/heads/main" || \
+                "${GITHUB_REF}" == "refs/heads/develop" || \
+                "${GITHUB_REF}" == "refs/heads/aks-dev" || \
+                "${GITHUB_REF}" == refs/tags/* ]]; then
+            PERFORM_RELEASE=true
+          elif [[ "${PERFORM_RELEASE_INPUT}" == "true" ]]; then
+            PERFORM_RELEASE=true
+          fi
+          echo "perform_release=${PERFORM_RELEASE}" >> "$GITHUB_OUTPUT"
+
       - name: Setup JDK
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: 'temurin'
           java-version: '25'
+          cache: ${{ steps.release_check.outputs.perform_release != 'true' && 'maven' || '' }}
 
       - name: Validate Java version consistency
         working-directory: ${{ inputs.workingDirectory }}
@@ -183,22 +200,8 @@ jobs:
           build-args:
             GITHUB_ACTOR=${{ github.actor }}
 
-      - name: Check if perform release
-        id: perform_release
-        run: |
-          PERFORM_RELEASE=false
-          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/develop" || "${GITHUB_REF}" == "refs/heads/aks-dev" ]]; then
-            PERFORM_RELEASE=true
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            PERFORM_RELEASE=true
-          elif [[ "${{ inputs.performRelease }}" == "true" ]]; then
-            PERFORM_RELEASE=true
-          fi
-          echo "PERFORM_RELEASE=${PERFORM_RELEASE}" >> $GITHUB_ENV
-          echo "Perform release: ${PERFORM_RELEASE}"
-
       - name: Extract Docker metadata
-        if: ${{ env.PERFORM_RELEASE == 'true' }}
+        if: ${{ steps.release_check.outputs.perform_release == 'true' }}
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
@@ -212,22 +215,22 @@ jobs:
             org.opencontainers.image.vendor=hsldevcom
 
       - name: Setup Docker Buildx
-        if: ${{ env.PERFORM_RELEASE == 'true' }}
+        if: ${{ steps.release_check.outputs.perform_release == 'true' }}
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Login to Docker Hub
-        if: ${{ env.PERFORM_RELEASE == 'true' }}
+        if: ${{ steps.release_check.outputs.perform_release == 'true' }}
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKER_HUB_INFODEVOPS_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_INFODEVOPS_TOKEN }}
 
       - name: Build & Push Docker image
-        if: ${{ env.PERFORM_RELEASE == 'true' }}
+        if: ${{ steps.release_check.outputs.perform_release == 'true' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ${{ inputs.workingDirectory }}
-          push: ${{ env.PERFORM_RELEASE }}
+          push: ${{ steps.release_check.outputs.perform_release }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           secrets: |

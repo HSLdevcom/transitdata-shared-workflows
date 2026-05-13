@@ -72,7 +72,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '25'
-          cache: 'maven'
 
       - name: Validate Java version consistency
         working-directory: ${{ inputs.workingDirectory }}

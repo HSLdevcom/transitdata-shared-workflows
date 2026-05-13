@@ -38,6 +38,7 @@ jobs:
           fetch-depth: 2
 
       - name: Install Node
+        # zizmor:ignore[cache-poisoning] Node binary tool-cache is implicit and cannot be disabled; no npm package cache is configured
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "lts/*"

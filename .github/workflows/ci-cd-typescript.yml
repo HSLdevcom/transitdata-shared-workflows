@@ -105,6 +105,7 @@ jobs:
         with:
           context: .
           load: true
+          no-cache: true
           target: "${{ env.TEST_STAGE }}"
           tags: "${{ env.IMAGE_NAME }}:${{ env.TEST_STAGE }}"
 
@@ -126,6 +127,7 @@ jobs:
         with:
           context: .
           push: true
+          no-cache: true
           target: "${{ env.PRODUCTION_STAGE }}"
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

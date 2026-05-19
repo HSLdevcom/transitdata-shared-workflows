@@ -1,8 +1,6 @@
 name: ci-cd-typescript.yml
 
-permissions:
-  contents: read
-  packages: read
+permissions: {}
 
 on:
   workflow_call:
@@ -27,9 +25,12 @@ env:
   PRODUCTION_STAGE: production
 
 jobs:
-  build-check-test-push:
-    name: Build, check, test, push
+  ci:
+    name: Build, check, test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -65,39 +66,9 @@ jobs:
           fail_ci_if_error: true
           report_type: test_results
 
-      - name: Check if perform release
-        id: perform_release
-        run: |
-          PERFORM_RELEASE=false
-          if [[ "${GITHUB_REF}" == "refs/heads/main" || "${GITHUB_REF}" == "refs/heads/develop" || "${GITHUB_REF}" == "refs/heads/aks-dev" ]]; then
-            PERFORM_RELEASE=true
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            PERFORM_RELEASE=true
-          elif [[ "${{ inputs.performRelease }}" == "true" ]]; then
-            PERFORM_RELEASE=true
-          fi
-          echo "PERFORM_RELEASE=${PERFORM_RELEASE}" >> $GITHUB_ENV
-          echo "Perform release: ${PERFORM_RELEASE}"
-
       - name: Lowercase Docker Image Name
         run: |
           echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
-
-      - name: Extract docker metadata
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=edge,branch=main
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
-            type=sha,format=long
-
-      - name: Setup Docker Buildx
-        if: env.PERFORM_RELEASE == 'true'
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Build and export to Docker
         if: ${{ inputs.checkAndTestInsideDocker }}
@@ -114,15 +85,51 @@ jobs:
         run: |
           docker run --rm "${{ env.IMAGE_NAME }}:${{ env.TEST_STAGE }}"
 
+  release:
+    name: Build & push Docker image
+    needs: ci
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/develop' ||
+      github.ref == 'refs/heads/aks-dev' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      inputs.performRelease == true
+    runs-on: ubuntu-latest
+    environment: docker-hub-release
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          clean: 'true'
+
+      - name: Lowercase Docker Image Name
+        run: |
+          echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Extract docker metadata
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=edge,branch=main
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=sha,format=long
+
       - name: Login to Docker Hub
-        if: env.PERFORM_RELEASE == 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           username: ${{ secrets.DOCKER_HUB_INFODEVOPS_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_INFODEVOPS_TOKEN }}
 
       - name: Build and push
-        if: env.PERFORM_RELEASE == 'true'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .

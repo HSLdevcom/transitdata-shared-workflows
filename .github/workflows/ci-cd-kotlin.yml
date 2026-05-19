@@ -1,8 +1,6 @@
 name: ci-cd-kotlin.yml
 
-permissions:
-  contents: read
-  packages: read
+permissions: {}
 
 on:
   workflow_call:
@@ -34,9 +32,12 @@ env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
 
 jobs:
-  build-check-test-push:
-    name: Build, check, test, push
+  ci:
+    name: Build, check, test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -68,28 +69,12 @@ jobs:
           ref: ${{ env.SHARED_WORKFLOW_REF }}
           path: .shared-workflows
 
-      - name: Check if release build
-        id: release_check
-        env:
-          PERFORM_RELEASE_INPUT: ${{ inputs.performRelease }}
-        run: |
-          PERFORM_RELEASE=false
-          if [[ "${GITHUB_REF}" == "refs/heads/main" || \
-                "${GITHUB_REF}" == "refs/heads/develop" || \
-                "${GITHUB_REF}" == "refs/heads/aks-dev" || \
-                "${GITHUB_REF}" == refs/tags/* ]]; then
-            PERFORM_RELEASE=true
-          elif [[ "${PERFORM_RELEASE_INPUT}" == "true" ]]; then
-            PERFORM_RELEASE=true
-          fi
-          echo "perform_release=${PERFORM_RELEASE}" >> "$GITHUB_OUTPUT"
-
       - name: Setup JDK
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           distribution: 'temurin'
           java-version: '11'
-          cache: ${{ steps.release_check.outputs.perform_release != 'true' && 'gradle' || '' }}
+          cache: 'gradle'
 
       - name: Validate Java version consistency
         env:
@@ -106,7 +91,7 @@ jobs:
         if: ${{ inputs.runTestsInsideDocker }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTOR_ARG: ${{ github.actor }}
+          GITHUB_ACTOR: ${{ github.actor }}
           DOCKER_BUILDKIT: "1"
         run: |
           cat > /tmp/Dockerfile.test << DOCKERFILE
@@ -114,16 +99,16 @@ jobs:
           # check=error=true
           FROM ${TEST_BASE_IMAGE}
           WORKDIR /usr/app
-          ARG GITHUB_ACTOR=github-actions
           COPY . .
           RUN --mount=type=secret,id=github_token \
+              --mount=type=secret,id=github_actor \
               export GITHUB_TOKEN="\$(cat /run/secrets/github_token)" && \
-              export GITHUB_ACTOR="\$GITHUB_ACTOR" && \
+              export GITHUB_ACTOR="\$(cat /run/secrets/github_actor)" && \
               ./gradlew test --stacktrace --no-daemon
           DOCKERFILE
           docker build \
             --secret id=github_token,env=GITHUB_TOKEN \
-            --build-arg "GITHUB_ACTOR=${GITHUB_ACTOR_ARG}" \
+            --secret id=github_actor,env=GITHUB_ACTOR \
             -f /tmp/Dockerfile.test \
             .
 
@@ -169,22 +154,33 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  release:
+    name: Build & push Docker image
+    needs: ci
+    if: >-
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/develop' ||
+      github.ref == 'refs/heads/aks-dev' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      inputs.performRelease == true
+    runs-on: ubuntu-latest
+    environment: docker-hub-release
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          clean: 'true'
+
       - name: Lowercase Docker Image Name
         run: |
           echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
-      - name: Build Docker Image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
-        with:
-          context: .
-          push: 'false'
-          tags: 'hsldevcom/${{ env.IMAGE_NAME }}:${{ github.sha }}'
 
       - name: Setup Docker Buildx
-        if: steps.release_check.outputs.perform_release == 'true'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Extract Docker metadata
-        if: steps.release_check.outputs.perform_release == 'true'
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
@@ -198,17 +194,15 @@ jobs:
             org.opencontainers.image.vendor=hsldevcom
 
       - name: Login to Docker Hub
-        if: steps.release_check.outputs.perform_release == 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           username: ${{ secrets.DOCKER_HUB_INFODEVOPS_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_INFODEVOPS_TOKEN }}
 
       - name: Build & Push Docker image
-        if: steps.release_check.outputs.perform_release == 'true'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
-          push: ${{ steps.release_check.outputs.perform_release }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

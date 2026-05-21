@@ -44,6 +44,7 @@ jobs:
         with:
           clean: 'true'
           fetch-depth: 2
+          persist-credentials: false
 
       # Required since custom scripts from /scripts are being used
       - name: Resolve shared workflow ref
@@ -68,6 +69,7 @@ jobs:
           repository: HSLdevcom/transitdata-shared-workflows
           ref: ${{ env.SHARED_WORKFLOW_REF }}
           path: .shared-workflows
+          persist-credentials: false
 
       - name: Setup JDK
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
@@ -172,6 +174,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           clean: 'true'
+          persist-credentials: false
 
       - name: Lowercase Docker Image Name
         run: |

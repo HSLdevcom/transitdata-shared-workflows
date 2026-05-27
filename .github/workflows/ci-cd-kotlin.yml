@@ -71,12 +71,28 @@ jobs:
           path: .shared-workflows
           persist-credentials: false
 
+      - name: Check if release build
+        id: release_check
+        env:
+          PERFORM_RELEASE_INPUT: ${{ inputs.performRelease }}
+        run: |
+          PERFORM_RELEASE=false
+          if [[ "${GITHUB_REF}" == "refs/heads/main" || \
+                "${GITHUB_REF}" == "refs/heads/develop" || \
+                "${GITHUB_REF}" == "refs/heads/aks-dev" || \
+                "${GITHUB_REF}" == refs/tags/* ]]; then
+            PERFORM_RELEASE=true
+          elif [[ "${PERFORM_RELEASE_INPUT}" == "true" ]]; then
+            PERFORM_RELEASE=true
+          fi
+          echo "perform_release=${PERFORM_RELEASE}" >> "$GITHUB_OUTPUT"
+
       - name: Setup JDK
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           distribution: 'temurin'
           java-version: '11'
-          cache: 'gradle'
+          cache: ${{ steps.release_check.outputs.perform_release != 'true' && 'gradle' || '' }}
 
       - name: Validate Java version consistency
         env:

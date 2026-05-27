@@ -5,16 +5,6 @@ permissions: {}
 on:
   workflow_call:
     inputs:
-      uploadJarArtifact:
-        required: false
-        type: boolean
-        default: false
-      jarArtifactName:
-        required: false
-        type: string
-      jarArtifactPath:
-        required: false
-        type: string
       performRelease:
         required: false
         type: boolean
@@ -142,13 +132,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
           report_type: test_results
-
-      - name: Upload .jar artifact
-        if: ${{ inputs.uploadJarArtifact }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: ${{ inputs.jarArtifactName }}
-          path: ${{ inputs.jarArtifactPath }}
 
       - name: Build artifact
         run: ./gradlew build -x test

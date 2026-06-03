@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           clean: 'true'
           fetch-depth: 2
@@ -62,7 +62,7 @@ jobs:
           echo "SHARED_WORKFLOW_REF=${SHARED_WORKFLOW_REF}" >> "$GITHUB_ENV"
 
       - name: Checkout shared workflow scripts
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: HSLdevcom/transitdata-shared-workflows
           ref: ${{ env.SHARED_WORKFLOW_REF }}
@@ -85,7 +85,7 @@ jobs:
           echo "perform_release=${PERFORM_RELEASE}" >> "$GITHUB_OUTPUT"
 
       - name: Setup JDK
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -142,7 +142,7 @@ jobs:
         run: ./gradlew test integrationTest jacocoTestReport --stacktrace
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
@@ -150,7 +150,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
@@ -158,7 +158,7 @@ jobs:
 
       - name: Upload .jar artifact
         if: ${{ inputs.uploadJarArtifact }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.jarArtifactName }}
           path: ${{ inputs.jarArtifactPath }}
@@ -173,7 +173,7 @@ jobs:
         run: |
           echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
       - name: Build Docker Image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           push: 'false'
@@ -181,12 +181,12 @@ jobs:
 
       - name: Setup Docker Buildx
         if: steps.release_check.outputs.perform_release == 'true'
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: Extract Docker metadata
         if: steps.release_check.outputs.perform_release == 'true'
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -199,14 +199,14 @@ jobs:
 
       - name: Login to Docker Hub
         if: steps.release_check.outputs.perform_release == 'true'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           username: ${{ secrets.DOCKER_HUB_INFODEVOPS_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_INFODEVOPS_TOKEN }}
 
       - name: Build & Push Docker image
         if: steps.release_check.outputs.perform_release == 'true'
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           push: ${{ steps.release_check.outputs.perform_release }}

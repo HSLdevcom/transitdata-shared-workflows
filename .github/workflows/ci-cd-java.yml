@@ -146,12 +146,6 @@ jobs:
           fail_ci_if_error: true
           report_type: test_results
 
-      - name: Build artifact
-        working-directory: ${{ inputs.workingDirectory }}
-        run: mvn package -Dmaven.test.skip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   release:
     name: Build & push Docker image
     needs: ci

@@ -9,6 +9,13 @@ on:
         required: false
         type: boolean
         default: false
+      workingDirectory:
+        required: false
+        type: string
+        default: .
+      imageName:
+        required: false
+        type: string
       runTestsInsideDocker:
         required: false
         type: boolean
@@ -38,6 +45,7 @@ jobs:
 
       # Required since custom scripts from /scripts are being used
       - name: Resolve shared workflow ref
+        id: resolve_shared_workflow_ref
         run: |
           set -euo pipefail
           SHARED_WORKFLOW_REF=$(grep -roh \
@@ -51,13 +59,13 @@ jobs:
           fi
 
           echo "Resolved shared workflow ref: ${SHARED_WORKFLOW_REF}"
-          echo "SHARED_WORKFLOW_REF=${SHARED_WORKFLOW_REF}" >> "$GITHUB_ENV"
+          echo "shared_workflow_ref=${SHARED_WORKFLOW_REF}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout shared workflow scripts
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: HSLdevcom/transitdata-shared-workflows
-          ref: ${{ env.SHARED_WORKFLOW_REF }}
+          ref: ${{ steps.resolve_shared_workflow_ref.outputs.shared_workflow_ref }}
           path: .shared-workflows
           persist-credentials: false
 
@@ -69,18 +77,23 @@ jobs:
           cache: 'gradle'
 
       - name: Validate Java version consistency
+        working-directory: ${{ inputs.workingDirectory }}
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JAVA_TOOL_OPTIONS: ""
         run: python3 "${GITHUB_WORKSPACE}/.shared-workflows/scripts/validate_java_version_consistency.py"
 
       - name: Check code format and lint
-        run: ./gradlew spotlessCheck
+        working-directory: ${{ inputs.workingDirectory }}
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          JAVA_TOOL_OPTIONS: ""
+        run: ./gradlew spotlessCheck --stacktrace
 
       - name: Run unit tests inside Docker
         if: ${{ inputs.runTestsInsideDocker }}
+        working-directory: ${{ inputs.workingDirectory }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTOR: ${{ github.actor }}
@@ -104,18 +117,34 @@ jobs:
             -f /tmp/Dockerfile.test \
             .
 
-      - name: Run unit tests
-        if: ${{ inputs.hasIntegrationTests == false }}
+      - name: Run unit tests outside Docker
+        if: ${{ !inputs.runTestsInsideDocker }}
+        working-directory: ${{ inputs.workingDirectory }}
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          JAVA_TOOL_OPTIONS: ""
+        run: ./gradlew test --stacktrace
+
+      # Equivalent of `mvn verify`: produces the Jacoco coverage report consumed by Codecov
+      - name: Generate coverage report
+        if: ${{ !inputs.hasIntegrationTests }}
+        working-directory: ${{ inputs.workingDirectory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          JAVA_TOOL_OPTIONS: ""
         run: ./gradlew test jacocoTestReport --stacktrace
 
-      - name: Run unit tests and integration tests
+      - name: Run Integration tests (Testcontainers)
         if: ${{ inputs.hasIntegrationTests }}
+        working-directory: ${{ inputs.workingDirectory }}
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          DOCKER_HOST: unix:///var/run/docker.sock
+          TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: /var/run/docker.sock
+          JAVA_TOOL_OPTIONS: ""
         run: ./gradlew test integrationTest jacocoTestReport --stacktrace
 
       - name: Upload coverage reports to Codecov
@@ -132,12 +161,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
           report_type: test_results
-
-      - name: Build artifact
-        run: ./gradlew build -x test
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     name: Build & push Docker image
@@ -157,9 +180,19 @@ jobs:
           clean: 'true'
           persist-credentials: false
 
-      - name: Lowercase Docker Image Name
+      - name: Set Docker Image Name
+        env:
+          IMAGE_NAME_INPUT: ${{ inputs.imageName }}
         run: |
-          echo "IMAGE_NAME=${IMAGE_NAME_MIXED_CASE,,}" >> "${GITHUB_ENV}"
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+
+          if [[ -n "${IMAGE_NAME_INPUT}" ]]; then
+            IMAGE_NAME="${OWNER,,}/${IMAGE_NAME_INPUT}"
+          else
+            IMAGE_NAME="${GITHUB_REPOSITORY,,}"
+          fi
+
+          echo "IMAGE_NAME=${IMAGE_NAME}" >> "$GITHUB_ENV"
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
@@ -186,7 +219,10 @@ jobs:
       - name: Build & Push Docker image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
-          context: .
+          context: ${{ inputs.workingDirectory }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          secrets: |
+            github_token=${{ secrets.GITHUB_TOKEN }}
+            github_actor=${{ github.actor }}

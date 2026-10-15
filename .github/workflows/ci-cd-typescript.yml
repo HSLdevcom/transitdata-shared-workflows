@@ -5,6 +5,11 @@ permissions: {}
 on:
   workflow_call:
     inputs:
+      skipLint:
+        description: Skip the MegaLinter job
+        required: false
+        type: boolean
+        default: false
       checkAndTestOutsideDocker:
         required: false
         type: boolean
@@ -25,6 +30,39 @@ env:
   PRODUCTION_STAGE: production
 
 jobs:
+  lint:
+    if: ${{ !inputs.skipLint }}
+    name: Lint (MegaLinter)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use shared MegaLinter config if repo has none
+        run: |
+          [ -f .mega-linter.yml ] || echo "MEGALINTER_CONFIG=https://raw.githubusercontent.com/HSLdevcom/transitdata-shared-workflows/main/megalinter/base.yml" >> "${GITHUB_ENV}"
+
+      - name: Run MegaLinter
+        uses: oxsecurity/megalinter/flavors/javascript@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0
+        env:
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
+          DISABLE_ERRORS: false
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Upload MegaLinter reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: megalinter-reports
+          path: |
+            megalinter-reports
+            mega-linter.log
+
   ci:
     name: Build, check, test
     runs-on: ubuntu-latest

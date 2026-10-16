@@ -220,11 +220,14 @@ jobs:
 
   release:
     name: Build & push Docker image
-    needs: ci
+    needs: [ci, lint]
     if: >-
-      github.ref == 'refs/heads/main' ||
+      always() &&
+      needs.ci.result == 'success' &&
+      (needs.lint.result == 'success' || needs.lint.result == 'skipped') &&
+      (github.ref == 'refs/heads/main' ||
       startsWith(github.ref, 'refs/tags/') ||
-      inputs.performRelease == true
+      inputs.performRelease == true)
     runs-on: ubuntu-latest
     environment: docker-hub-release
     permissions:

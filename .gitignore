@@ -3,4 +3,6 @@ scripts/__pycache__
 /AGENTS.md
 /CLAUDE.md
 /.claude/settings.local.json
-/scripts
+/scripts/*
+!/scripts/lint-local.sh
+!/scripts/*validate_java_version_consistency.py

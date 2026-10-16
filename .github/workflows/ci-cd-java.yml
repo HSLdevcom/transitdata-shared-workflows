@@ -5,6 +5,11 @@ permissions: {}
 on:
   workflow_call:
     inputs:
+      skipLint:
+        description: Skip the MegaLinter job
+        required: false
+        type: boolean
+        default: false
       performRelease:
         required: false
         type: boolean
@@ -25,6 +30,57 @@ env:
   IMAGE_NAME_MIXED_CASE: "${{ github.repository }}"
 
 jobs:
+  lint:
+    if: ${{ !inputs.skipLint }}
+    name: Lint (MegaLinter)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use shared MegaLinter config if repo has none
+        working-directory: ${{ inputs.workingDirectory }}
+        run: |
+          set -euo pipefail
+          [ -f .mega-linter.yml ] && exit 0
+          REF=$(grep -roh \
+            'transitdata-shared-workflows/.github/workflows/[^@]*@[^ "'\'']*' \
+            "${GITHUB_WORKSPACE}/.github/workflows/" 2>/dev/null \
+            | sed 's/.*@//' | head -1 || true)
+          if [[ -z "${REF}" ]]; then
+            echo "::warning::Could not detect shared workflow ref from caller workflows; falling back to main"
+            REF="main"
+          fi
+          RAW="https://raw.githubusercontent.com/HSLdevcom/transitdata-shared-workflows/${REF}/megalinter"
+          {
+            echo "MEGALINTER_CONFIG=${RAW}/base.yml"
+            echo "LINTER_RULES_PATH=${RAW}/linters"
+          } >> "${GITHUB_ENV}"
+
+      - name: Run MegaLinter
+        uses: oxsecurity/megalinter/flavors/java@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0
+        env:
+          DEFAULT_WORKSPACE: /github/workspace/${{ inputs.workingDirectory }}
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
+          DISABLE_ERRORS: false
+          GITHUB_COMMENT_REPORTER: false
+          GITHUB_STATUS_REPORTER: false
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Upload MegaLinter reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: megalinter-reports
+          path: |
+            megalinter-reports
+            mega-linter.log
+
   ci:
     name: Build, check, test
     runs-on: ubuntu-latest
@@ -148,11 +204,14 @@ jobs:
 
   release:
     name: Build & push Docker image
-    needs: ci
+    needs: [ci, lint]
     if: >-
-      github.ref == 'refs/heads/main' ||
+      always() &&
+      needs.ci.result == 'success' &&
+      (needs.lint.result == 'success' || needs.lint.result == 'skipped') &&
+      (github.ref == 'refs/heads/main' ||
       startsWith(github.ref, 'refs/tags/') ||
-      inputs.performRelease == true
+      inputs.performRelease == true)
     runs-on: ubuntu-latest
     environment: docker-hub-release
     permissions:

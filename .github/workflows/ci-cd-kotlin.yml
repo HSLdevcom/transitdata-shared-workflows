@@ -48,14 +48,32 @@ jobs:
           persist-credentials: false
 
       - name: Use shared MegaLinter config if repo has none
+        working-directory: ${{ inputs.workingDirectory }}
         run: |
-          [ -f .mega-linter.yml ] || echo "MEGALINTER_CONFIG=https://raw.githubusercontent.com/HSLdevcom/transitdata-shared-workflows/main/megalinter/base.yml" >> "${GITHUB_ENV}"
+          set -euo pipefail
+          [ -f .mega-linter.yml ] && exit 0
+          REF=$(grep -roh \
+            'transitdata-shared-workflows/.github/workflows/[^@]*@[^ "'\'']*' \
+            "${GITHUB_WORKSPACE}/.github/workflows/" 2>/dev/null \
+            | sed 's/.*@//' | head -1 || true)
+          if [[ -z "${REF}" ]]; then
+            echo "::warning::Could not detect shared workflow ref from caller workflows; falling back to main"
+            REF="main"
+          fi
+          RAW="https://raw.githubusercontent.com/HSLdevcom/transitdata-shared-workflows/${REF}/megalinter"
+          {
+            echo "MEGALINTER_CONFIG=${RAW}/base.yml"
+            echo "LINTER_RULES_PATH=${RAW}/linters"
+          } >> "${GITHUB_ENV}"
 
       - name: Run MegaLinter
         uses: oxsecurity/megalinter/flavors/java@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0
         env:
+          DEFAULT_WORKSPACE: /github/workspace/${{ inputs.workingDirectory }}
           VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
           DISABLE_ERRORS: false
+          GITHUB_COMMENT_REPORTER: false
+          GITHUB_STATUS_REPORTER: false
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Upload MegaLinter reports

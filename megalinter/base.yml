@@ -25,6 +25,9 @@ DISABLE_LINTERS:
   - REPOSITORY_TRUFFLEHOG
   - REPOSITORY_CHECKOV
   - JAVASCRIPT_STANDARD
+  # spotless:check already enforces Java style; default checkstyle (sun_checks) and PMD conflict with it
+  - JAVA_CHECKSTYLE
+  - JAVA_PMD
 
 DISABLE_ERRORS_LINTERS:
   - JAVASCRIPT_PRETTIER

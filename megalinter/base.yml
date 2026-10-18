@@ -1,0 +1,33 @@
+# A repo can extend this in its own .mega-linter.yml (lists are replaced, not merged):
+#   EXTENDS:
+#     - https://raw.githubusercontent.com/HSLdevcom/transitdata-shared-workflows/main/megalinter/base.yml
+APPLY_FIXES: none
+SHOW_ELAPSED_TIME: true
+PRINT_ALPACA: false
+FLAVOR_SUGGESTIONS: false
+FILTER_REGEX_EXCLUDE: '(^|/)(node_modules|dist|build|target|\.idea|package-lock\.json|yarn\.lock)(/|$)'
+
+ACTION_ZIZMOR_UNSECURED_ENV_VARIABLES:
+  - GITHUB_TOKEN
+
+# Java/Kotlin are left to each repo's spotless check.
+# Add JAVASCRIPT_ES/JSX_ESLINT/TYPESCRIPT_ES/TSX_ESLINT once repos are migrated to ESLint 10+.
+ENABLE_LINTERS:
+  - ACTION_ACTIONLINT
+  - ACTION_ZIZMOR
+  - BASH_SHELLCHECK
+  - CSS_STYLELINT
+  - DOCKERFILE_HADOLINT
+  - HTML_HTMLHINT
+  - JSON_JSONLINT
+  - MARKDOWN_MARKDOWNLINT
+  - REPOSITORY_GITLEAKS
+  - SQL_SQLFLUFF
+  - XML_XMLLINT
+  - YAML_YAMLLINT
+
+BASH_SHELLCHECK_ARGUMENTS: --severity=warning
+DOCKERFILE_HADOLINT_ARGUMENTS: --failure-threshold warning
+SQL_SQLFLUFF_ARGUMENTS: --dialect postgres
+
+LINTER_RULES_PATH: https://raw.githubusercontent.com/HSLdevcom/transitdata-shared-workflows/main/megalinter/linters

@@ -48,6 +48,14 @@ jobs:
           GITHUB_COMMENT_REPORTER: false
           GITHUB_STATUS_REPORTER: false
 
+      # Outside MegaLinter so only zizmor (which never executes repo content) gets the token for online audits.
+      - &zizmor
+        name: zizmor
+        if: ${{ !cancelled() }}
+        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        with:
+          advanced-security: false
+
       - &upload
         name: Upload MegaLinter reports
         if: ${{ !cancelled() }}
@@ -71,4 +79,5 @@ jobs:
       - name: MegaLinter
         uses: oxsecurity/megalinter/flavors/javascript@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0
         env: *megalinter-env
+      - *zizmor
       - *upload

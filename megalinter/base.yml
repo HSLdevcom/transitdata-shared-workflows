@@ -9,10 +9,10 @@ FLAVOR_SUGGESTIONS: false
 FILTER_REGEX_EXCLUDE: '(^|/)(node_modules|dist|build|target|\.idea|package-lock\.json|yarn\.lock)(/|$)'
 
 # Java/Kotlin are left to each repo's spotless check.
+# zizmor runs as its own step in lint.yml so the GitHub token never enters this container.
 # Add JAVASCRIPT_ES/JSX_ESLINT/TYPESCRIPT_ES/TSX_ESLINT once repos are migrated to ESLint 10+.
 ENABLE_LINTERS:
   - ACTION_ACTIONLINT
-  - ACTION_ZIZMOR
   - BASH_SHELLCHECK
   - CSS_STYLELINT
   - DOCKERFILE_HADOLINT

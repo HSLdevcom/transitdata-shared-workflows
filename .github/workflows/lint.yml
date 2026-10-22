@@ -39,7 +39,6 @@ jobs:
         run: |
           set -euo pipefail
           [ -f .mega-linter.yml ] || echo "MEGALINTER_CONFIG=${RAW}/base.yml" >> "${GITHUB_ENV}"
-          grep -qs '^LINTER_RULES_PATH:' .mega-linter.yml || echo "LINTER_RULES_PATH=${RAW}/linters" >> "${GITHUB_ENV}"
 
       - name: MegaLinter
         uses: oxsecurity/megalinter/flavors/java@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0

@@ -1,0 +1,82 @@
+name: lint.yml
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      blocking:
+        description: Fail the caller's run on lint findings. Off by default, findings are only reported.
+        required: false
+        type: boolean
+        default: false
+      flavor:
+        description: MegaLinter flavor, java or javascript
+        required: true
+        type: string
+
+jobs:
+  java:
+    if: ${{ inputs.flavor == 'java' }}
+    name: Lint (MegaLinter java)
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ !inputs.blocking }}
+    permissions:
+      contents: read
+    steps:
+      - &checkout
+        name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # full history only for the PR diff; gitleaks runs with --no-git
+          fetch-depth: ${{ github.event_name != 'pull_request' && 1 || 0 }}
+          persist-credentials: false
+
+      - &config
+        name: Use shared MegaLinter config from this workflow's commit
+        env:
+          RAW: https://raw.githubusercontent.com/HSLdevcom/transitdata-shared-workflows/${{ job.workflow_sha }}/megalinter
+        run: |
+          set -euo pipefail
+          [ -f .mega-linter.yml ] || echo "MEGALINTER_CONFIG=${RAW}/base.yml" >> "${GITHUB_ENV}"
+
+      - name: MegaLinter
+        uses: oxsecurity/megalinter/flavors/java@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0
+        env: &megalinter-env
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
+          GITHUB_COMMENT_REPORTER: false
+          GITHUB_STATUS_REPORTER: false
+
+      # Outside MegaLinter so only zizmor (which never executes repo content) gets the token for online audits.
+      - &zizmor
+        name: zizmor
+        if: ${{ !cancelled() }}
+        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        with:
+          advanced-security: false
+
+      - &upload
+        name: Upload MegaLinter reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: megalinter-reports-${{ inputs.flavor }}
+          path: |
+            megalinter-reports
+            mega-linter.log
+
+  javascript:
+    if: ${{ inputs.flavor == 'javascript' }}
+    name: Lint (MegaLinter javascript)
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ !inputs.blocking }}
+    permissions:
+      contents: read
+    steps:
+      - *checkout
+      - *config
+      - name: MegaLinter
+        uses: oxsecurity/megalinter/flavors/javascript@ef3e84b8b836d76db562d0f3ed7da61e8fd538bc # v9.6.0
+        env: *megalinter-env
+      - *zizmor
+      - *upload

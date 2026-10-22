@@ -10,7 +10,6 @@ shift
 
 args=()
 [ -f .mega-linter.yml ] || args+=(-e "MEGALINTER_CONFIG=${BASE_URL}/base.yml")
-grep -qs '^LINTER_RULES_PATH:' .mega-linter.yml || args+=(-e "LINTER_RULES_PATH=${BASE_URL}/linters")
 
 exec docker run --rm \
   -v "$PWD:/tmp/lint" \

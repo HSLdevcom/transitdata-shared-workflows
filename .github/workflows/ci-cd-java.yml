@@ -187,6 +187,7 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
+            type=edge,branch=main
             type=ref,event=branch
             type=sha
             type=semver,pattern={{version}}

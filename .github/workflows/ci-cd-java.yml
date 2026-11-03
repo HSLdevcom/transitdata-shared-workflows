@@ -6,10 +6,10 @@ on:
   workflow_call:
     inputs:
       lintBlocking:
-        description: Fail the run on MegaLinter findings. Off by default.
+        description: Fail the run on MegaLinter findings. Set false to only report them.
         required: false
         type: boolean
-        default: false
+        default: true
       performRelease:
         required: false
         type: boolean

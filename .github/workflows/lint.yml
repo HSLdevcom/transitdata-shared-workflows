@@ -6,10 +6,10 @@ on:
   workflow_call:
     inputs:
       blocking:
-        description: Fail the caller's run on lint findings. Off by default, findings are only reported.
+        description: Fail the caller's run on lint findings. If false, findings are only reported.
         required: false
         type: boolean
-        default: false
+        default: true
       flavor:
         description: MegaLinter flavor, java or javascript
         required: true

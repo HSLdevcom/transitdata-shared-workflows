@@ -212,6 +212,7 @@ def main():
         os.path.join(os.getcwd(), 'build.gradle'),
     ]
 
+    is_gradle = not os.path.exists(pom_path)
     if os.path.exists(pom_path):
         build_version, build_source = parse_maven_java_version()
     else:
@@ -221,6 +222,27 @@ def main():
                 'Could not find pom.xml, build.gradle.kts, or build.gradle in the working directory.'
             )
         build_version, build_source = parse_gradle_java_version(existing_gradle_paths[0])
+
+    # Gradle/Kotlin projects may legitimately target a lower bytecode version than the
+    # runtime image: the Kotlin compiler can lag the latest JDK (e.g. no JVM 25 target yet),
+    # yet a dependency compiled for the newer JDK forces that newer runtime. Lower bytecode
+    # always runs on a higher JVM, so for Gradle we require build_target <= runtime Java.
+    # Maven (javac) can always target the runtime version, so it stays a strict match.
+    if is_gradle:
+        if int(build_version) > int(docker_version):
+            print(
+                'Java version mismatch: '
+                f'{build_source} targets Java {build_version}, which is newer than the '
+                f'Dockerfile runtime Java {docker_version} ({docker_image}).',
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(
+            'Java version check passed: '
+            f'{build_source} targets Java {build_version}, runnable on the '
+            f'Dockerfile runtime Java {docker_version}.'
+        )
+        return
 
     if docker_version != build_version:
         print(

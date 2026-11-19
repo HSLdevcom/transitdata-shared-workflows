@@ -174,6 +174,9 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
           report_type: test_results
+          # Gradle writes JUnit XML under build/test-results/<task>/; point Codecov at it
+          # explicitly since its auto-search is tuned for Maven's surefire layout.
+          files: ${{ inputs.workingDirectory }}/build/test-results/**/*.xml
 
   release:
     name: Build & push Docker image

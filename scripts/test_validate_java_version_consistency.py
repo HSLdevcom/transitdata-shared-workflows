@@ -2,11 +2,18 @@ import pytest
 
 from validate_java_version_consistency import (
     extract_java_version_from_docker_tag,
+    main,
     normalize_java_version,
     parse_docker_java_version,
     parse_docker_jdk_image,
     parse_gradle_java_version,
     resolve_args,
+)
+
+TWO_STAGE_DOCKERFILE_JAVA_25 = (
+    "FROM hsldevcom/infodevops-docker-base-images:1.0.2-25-java-jdk AS build\n"
+    "RUN true\n"
+    "FROM hsldevcom/infodevops-docker-base-images:1.0.2-25-java-jre\n"
 )
 
 
@@ -336,3 +343,36 @@ class TestParseGradleJavaVersion:
         gradle.write_text("")
         with pytest.raises(RuntimeError, match="Could not determine the Java version"):
             parse_gradle_java_version(str(gradle))
+
+
+# ---------------------------------------------------------------------------
+# main() — build target vs runtime Java version rules
+# ---------------------------------------------------------------------------
+class TestMainVersionRules:
+    def test_gradle_target_lower_than_runtime_passes(self, tmp_path, monkeypatch, capsys):
+        (tmp_path / "Dockerfile").write_text(TWO_STAGE_DOCKERFILE_JAVA_25)
+        (tmp_path / "build.gradle").write_text(
+            'compileKotlin {\n    kotlinOptions.jvmTarget = "24"\n}\n'
+        )
+        monkeypatch.chdir(tmp_path)
+        main()
+        assert "check passed" in capsys.readouterr().out
+
+    def test_gradle_target_newer_than_runtime_fails(self, tmp_path, monkeypatch):
+        (tmp_path / "Dockerfile").write_text(TWO_STAGE_DOCKERFILE_JAVA_25)
+        (tmp_path / "build.gradle").write_text(
+            'compileKotlin {\n    kotlinOptions.jvmTarget = "26"\n}\n'
+        )
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(SystemExit) as exc:
+            main()
+        assert exc.value.code == 1
+
+    def test_gradle_target_equal_to_runtime_passes(self, tmp_path, monkeypatch, capsys):
+        (tmp_path / "Dockerfile").write_text(TWO_STAGE_DOCKERFILE_JAVA_25)
+        (tmp_path / "build.gradle").write_text(
+            'compileKotlin {\n    kotlinOptions.jvmTarget = "25"\n}\n'
+        )
+        monkeypatch.chdir(tmp_path)
+        main()
+        assert "check passed" in capsys.readouterr().out

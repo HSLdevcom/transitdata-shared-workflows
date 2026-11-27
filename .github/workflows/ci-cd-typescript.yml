@@ -52,10 +52,26 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
+      # Find node version from production image so new LTS release do not break builds
+      - name: Resolve Node version
+        id: node-version
+        run: |
+          image=""
+          if [ -f Dockerfile ]; then
+            image=$(awk 'toupper($1) == "FROM" { for (i = 2; i <= NF; i++) if ($i !~ /^--/) { print $i; exit } }' Dockerfile)
+          fi
+          if [ -n "$image" ] && version=$(docker run --rm --entrypoint node "$image" --version 2>/dev/null); then
+            echo "Node ${version} from the Dockerfile's base image ${image}"
+            echo "version=${version#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Node in the Dockerfile's base image, using lts/*"
+            echo "version=lts/*" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0 # zizmor: ignore[cache-poisoning]
         with:
-          node-version: "lts/*"
+          node-version: ${{ steps.node-version.outputs.version }}
 
       - name: Install NPM dependencies
         run: npm ci
